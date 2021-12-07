@@ -18,9 +18,11 @@
     <ClCompile Include="Main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Drawing.cpp">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Drawing.cpp">
       <Filter>소스 파일</Filter>
-    </ClCompile>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Drawing.h">

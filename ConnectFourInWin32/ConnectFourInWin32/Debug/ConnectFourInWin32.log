@@ -1,3 +1,2 @@
-﻿  Main.cpp
-Main.obj : error LNK2019: "struct tagRECT __cdecl getInnerSquare(struct tagRECT *,int,int,int,int)" (?getInnerSquare@@YA?AUtagRECT@@PAU1@HHHH@Z)"long __stdcall WndProc(struct HWND__ *,unsigned int,unsigned int,long)" (?WndProc@@YGJPAUHWND__@@IIJ@Z) 함수에서 참조되는 확인할 수 없는 외부 기호
+﻿Main.obj : error LNK2019: "struct tagRECT __cdecl getInnerSquare(struct tagRECT *,int,int,int,int)" (?getInnerSquare@@YA?AUtagRECT@@PAU1@HHHH@Z)"long __stdcall WndProc(struct HWND__ *,unsigned int,unsigned int,long)" (?WndProc@@YGJPAUHWND__@@IIJ@Z) 함수에서 참조되는 확인할 수 없는 외부 기호
 C:\Users\thesm\OneDrive\바탕 화면\UNIV\WinTeamProj\ConnectFourInWin32\Debug\ConnectFourInWin32.exe : fatal error LNK1120: 1개의 확인할 수 없는 외부 참조입니다.

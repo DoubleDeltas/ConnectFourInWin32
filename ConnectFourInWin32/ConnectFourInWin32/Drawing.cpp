@@ -19,7 +19,7 @@ RECT getInnerSqaure(PRECT pboard, int xSize, int ySize, int i, int j) {
 		pboard->left + j * width + width / 10,
 		pboard->top + i * height + height / 10,
 		pboard->left + (j + 1) * width - width / 10,
-		pboard->top + (i + 1) * height / 10
+		pboard->top + (i + 1) * height - height / 10
 	};
 	return rect;
 }
