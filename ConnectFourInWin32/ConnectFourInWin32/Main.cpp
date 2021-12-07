@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "Drawing.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
@@ -57,7 +58,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	static HBRUSH hbBlue, hbRed, hbYellow;
 
 	HBRUSH oldBrush;
-	RECT rect, innerRect;
+	RECT rect;
 	int i, j;
 
 	switch (iMessage) {
@@ -74,38 +75,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		hbRed = CreateSolidBrush(RGB(255, 0, 0));
 		hbYellow = CreateSolidBrush(RGB(255, 255, 0));
 
-		return 0;
+		break;
 
 	case WM_LBUTTONDOWN:
-		i = (HIWORD(lParam) - boardRect.bottom) * SIZE_Y / (boardRect.bottom - boardRect.top);	// y-index
-		j = (LOWORD(lParam) - boardRect.right) * SIZE_X / (boardRect.right - boardRect.left);	// x-index
+		j = (LOWORD(lParam) - boardRect.left) * SIZE_X / (boardRect.right - boardRect.left);	// x-index
 
-		if (i < 0 || i >= SIZE_Y || j < 0 || j > SIZE_X)	// non-hit check
+		if (j < 0 || j >= SIZE_X)	// non-hit check
 			break;
 
 
-		return 0;
+		break;
 
 
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
-		width = (boardRect.right - boardRect.left) / SIZE_X;
-		height = (boardRect.bottom - boardRect.top) / SIZE_Y;
 		for (i = 0; i < SIZE_Y; i++) {
 			for (j = 0; j < SIZE_X; j++) {
-				rect = {
-					boardRect.left + j * width,
-					boardRect.top + i * height,
-					boardRect.left + (j + 1) * width,
-					boardRect.top + (i + 1) * height
-				};
-				innerRect = {
-					rect.left + width / 10,
-					rect.top + height / 10,
-					rect.right - width / 10,
-					rect.bottom - height / 10
-				};
+				rect = getSquare(&boardRect, SIZE_X, SIZE_Y, i, j);
 				oldBrush = (HBRUSH)SelectObject(hdc, hbBlue);
 				Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
 				switch (board[i][j]) {
@@ -119,12 +106,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 					SelectObject(hdc, hbYellow);
 					break;
 				}
-				Ellipse(hdc, innerRect.left, innerRect.top, innerRect.right, innerRect.bottom);
+				rect = getInnerSquare(&boardRect, SIZE_X, SIZE_Y, i, j);
+				Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom);
 			}
 		}
 
 		EndPaint(hWnd, &ps);
-		return 0;
+		break;
 
 
 	case WM_DESTROY:
