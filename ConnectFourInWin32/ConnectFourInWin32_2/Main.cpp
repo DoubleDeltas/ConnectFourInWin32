@@ -41,9 +41,8 @@ const int SIZE_X = 7;
 const int SIZE_Y = 6;
 
 const int EMPTY = 0, RED = 1, YELLOW = 2;
-const RECT rectTurnText = { 500, 200, 500, 220 };
 
-int board[SIZE_Y][SIZE_X];
+int board[SIZE_X][SIZE_Y];
 int turn;
 
 RECT boardRect;
@@ -96,12 +95,11 @@ int dropStone(HWND hWnd, int col) {
 
 	rect = getSquare(i, col);
 	InvalidateRect(hWnd, &rect, FALSE);
-	InvalidateRect(hWnd, &rectTurnText, TRUE);
 
 	return i;
 }
 
-int winpoint(int lastX, int lastY) {
+int getWinner(int lastX, int lastY) {
 	int cnt;
 	int player;
 	int d;
@@ -227,7 +225,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		if (i == -1)	// column is full
 			break;
 
-		tmp = winpoint(i, j);
+		tmp = getWinner(i, j);
 		if (tmp != 0) {
 			if (tmp == RED)
 				wsprintf(buf, TEXT("Red Won, Continue?"));
