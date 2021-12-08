@@ -3,7 +3,7 @@
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
 HWND hWndMain;
-LPCTSTR lpszClass = TEXT("Class");
+LPCTSTR lpszClass = TEXT("Connect Four");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance
 	, LPSTR lpszCmdParam, int nCmdShow)
@@ -41,11 +41,23 @@ const int SIZE_X = 7;
 const int SIZE_Y = 6;
 
 const int EMPTY = 0, RED = 1, YELLOW = 2;
+const RECT rectTurnText = { 500, 200, 500, 220 };
 
 int board[SIZE_Y][SIZE_X];
 int turn;
 
 RECT boardRect;
+
+// temporal variable
+RECT rect;
+
+void init(HWND hWnd) {
+	turn = 0;
+	for (int i = 0; i < SIZE_Y; i++)
+		for (int j = 0; j < SIZE_X; j++)
+			board[j][i] = 0;
+	InvalidateRect(hWnd, &boardRect, TRUE);
+}
 
 RECT getSquare(int i, int j) {
 	int width = (boardRect.right - boardRect.left) / SIZE_X;
@@ -71,22 +83,110 @@ RECT getInnerSqaure(int i, int j) {
 	return rect;
 }
 
-int getStoneHeight(int col) {
+int dropStone(HWND hWnd, int col) {
 	int i;
-	for (i = 0; i < SIZE_Y; i++) {
+	for (i = 0; i < SIZE_Y; i++)
 		if (board[i][col]) break;
-	}
 	i--;
 
-	return i;	// -1: error
+	if (i == -1) return -1;
+
+	turn++;
+	board[i][col] = (turn % 2) ? 1 : 2;
+
+	rect = getSquare(i, col);
+	InvalidateRect(hWnd, &rect, FALSE);
+	InvalidateRect(hWnd, &rectTurnText, TRUE);
+
+	return i;
 }
 
-void setStone(HWND hWnd, int row, int col) {
-	turn++;
-	board[row][col] = (turn % 2) ? 1 : 2;
+int winpoint(int lastX, int lastY) {
+	int cnt;
+	int player;
+	int d;
+	for (player = RED; player <= YELLOW; player++) {
+		// is there player stone?
+		if (board[lastX][lastY] != player)
+			continue;
+		// left-right check
+		cnt = 1;
+		d = 0;		// left
+		while (TRUE) {
+			d++;
+			if (lastX - d < 0 || board[lastX - d][lastY] != player)
+				break;
+			cnt++;
+		}
+		d = 0;
+		while (TRUE) {
+			d++;
+			if (lastX + d >= SIZE_X || board[lastX + d][lastY] != player)
+				break;
+			cnt++;
+		}
+		if (cnt >= 4)
+			return player;
 
-	RECT rect = getSquare(row, col);
-	InvalidateRect(hWnd, &rect, TRUE);
+		// up-down check
+		cnt = 1;
+		d = 0;		// up
+		while (TRUE) {
+			d++;
+			if (lastY - d < 0 || board[lastX][lastY - d] != player)
+				break;
+			cnt++;
+		}
+		d = 0;		// down
+		while (TRUE) {
+			d++;
+			if (lastY + d >= SIZE_Y || board[lastX][lastY + d] != player)
+				break;
+			cnt++;
+		}
+		if (cnt >= 4)
+			return player;
+
+		// / direction check
+		cnt = 1;
+		d = 0;		// upright
+		while (TRUE) {
+			d++;
+			if (lastX + d >= SIZE_X || lastY - d < 0 || board[lastX + d][lastY - d] != player)
+				break;
+			cnt++;
+		}
+		d = 0;		// downright
+		while (TRUE) {
+			d++;
+			if (lastX - d < 0 || lastY - d >= SIZE_Y || board[lastX - d][lastY + d] != player)
+				break;
+			cnt++;
+		}
+		if (cnt >= 4)
+			return player;
+
+		// \ direction check
+		cnt = 1;
+		d = 0;		// upleft
+		while (TRUE) {
+			d++;
+			if (lastX - d < 0 || lastY - d < 0 || board[lastX - d][lastY - d] != player)
+				break;
+			cnt++;
+		}
+		d = 0;		// downright
+		while (TRUE) {
+			d++;
+			if (lastX + d >= SIZE_X || lastY - d >= SIZE_Y || board[lastX + d][lastY + d] != player)
+				break;
+			cnt++;
+		}
+		if (cnt >= 4)
+			return player;
+
+	}
+	return 0;	// no one won
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
@@ -95,11 +195,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	PAINTSTRUCT ps;
 
 	static int width, height;
-	static HBRUSH hbBlue, hbRed, hbYellow;
+	static HBRUSH hbWhite, hbBlue, hbRed, hbYellow;
 
 	HBRUSH oldBrush;
-	RECT rect;
-	int i, j;
+	int i, j, tmp;
+	TCHAR buf[128];
 
 	switch (iMessage) {
 	case WM_CREATE:
@@ -111,6 +211,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		boardRect.left = rect.left + 10;
 		boardRect.right = boardRect.left + (boardRect.bottom - boardRect.top) * SIZE_X / SIZE_Y;
 
+		hbWhite = CreateSolidBrush(RGB(255, 255, 255));
 		hbBlue = CreateSolidBrush(RGB(0, 0, 255));
 		hbRed = CreateSolidBrush(RGB(255, 0, 0));
 		hbYellow = CreateSolidBrush(RGB(255, 255, 0));
@@ -121,24 +222,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		j = (LOWORD(lParam) - boardRect.left) * SIZE_X / (boardRect.right - boardRect.left);	// x-index
 		if (j < 0 || j >= SIZE_X)	// non-hit check
 			break;
-		i = getStoneHeight(j);
-		if (i == -1) break;
 
-		setStone(hWnd, i, j);
-		break;
+		i = dropStone(hWnd, j);
+		if (i == -1)	// column is full
+			break;
+
+		tmp = winpoint(i, j);
+		if (tmp != 0) {
+			if (tmp == RED)
+				wsprintf(buf, TEXT("Red Won, Continue?"));
+			else if (tmp == YELLOW)
+				wsprintf(buf, TEXT("Yellow Won, Continue?"));
+			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+				init(hWnd);
+			else
+				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
+		}
 
 
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
+		oldBrush = (HBRUSH)SelectObject(hdc, NULL);
 		for (i = 0; i < SIZE_Y; i++) {
 			for (j = 0; j < SIZE_X; j++) {
 				rect = getSquare(i, j);
-				oldBrush = (HBRUSH)SelectObject(hdc, hbBlue);
+				SelectObject(hdc, hbBlue);
 				Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
 				switch (board[i][j]) {
 				case 0:
-					SelectObject(hdc, oldBrush);
+					SelectObject(hdc, hbWhite);
 					break;
 				case 1:
 					SelectObject(hdc, hbRed);
@@ -152,6 +265,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 			}
 		}
 
+		SelectObject(hdc, oldBrush);
 		EndPaint(hWnd, &ps);
 		break;
 
