@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <time.h>
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
@@ -47,8 +48,9 @@ int turn;
 
 RECT boardRect;
 
-// temporal variable
+// temporal variables
 RECT rect;
+TCHAR buf[128];
 
 void init(HWND hWnd) {
 	turn = 0;
@@ -58,42 +60,48 @@ void init(HWND hWnd) {
 	InvalidateRect(hWnd, &boardRect, TRUE);
 }
 
-RECT getSquare(int i, int j) {
+RECT getSquare(int x, int y) {
 	int width = (boardRect.right - boardRect.left) / SIZE_X;
 	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
 	RECT rect = {
-			boardRect.left + j * width,
-			boardRect.top + i * height,
-			boardRect.left + (j + 1) * width,
-			boardRect.top + (i + 1) * height
+		boardRect.left + x * width,
+		boardRect.top + y * height,
+		boardRect.left + (x + 1) * width,
+		boardRect.top + (y + 1) * height
 	};
 	return rect;
 }
 
-RECT getInnerSqaure(int i, int j) {
+RECT getInnerSqaure(int x, int y) {
 	int width = (boardRect.right - boardRect.left) / SIZE_X;
 	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
 	RECT rect = {
-		boardRect.left + j * width + width / 10,
-		boardRect.top + i * height + height / 10,
-		boardRect.left + (j + 1) * width - width / 10,
-		boardRect.top + (i + 1) * height - height / 10
+		boardRect.left + x * width + width / 10,
+		boardRect.top + y * height + height / 10,
+		boardRect.left + (x + 1) * width - width / 10,
+		boardRect.top + (y + 1) * height - height / 10
 	};
 	return rect;
+}
+
+int getHeight(int col) {	// 0 ~ SIZE_Y - 1
+	int i;
+	for (i = 0; i < SIZE_Y; i++)
+		if (board[col][i]) break;
+	i--;
+
+	return i;	// cf. if column is full, return -1
 }
 
 int dropStone(HWND hWnd, int col) {
-	int i;
-	for (i = 0; i < SIZE_Y; i++)
-		if (board[i][col]) break;
-	i--;
-
-	if (i == -1) return -1;
+	int i = getHeight(col);
+	if (i == -1)
+		return -1;
 
 	turn++;
-	board[i][col] = (turn % 2) ? 1 : 2;
+	board[col][i] = (turn % 2) ? RED : YELLOW;
 
-	rect = getSquare(i, col);
+	rect = getSquare(col, i);
 	InvalidateRect(hWnd, &rect, FALSE);
 
 	return i;
@@ -187,6 +195,85 @@ int getWinner(int lastX, int lastY) {
 	return 0;	// no one won
 }
 
+BOOL isFull() {
+	for (int j = 0; j < SIZE_X; j++) {
+		if (getHeight(j) != -1)
+			return FALSE;
+	}
+	return TRUE;
+}
+
+int evaluate(int depth, int lastX, int lastY) {
+	switch (getWinner(lastX, lastY)) {
+	case RED:
+		return -100 - depth;
+	case YELLOW:
+		return 100 + depth;
+	default:
+		return 0;
+	}
+}
+
+int minimax(int* pos, int depth, int turn, int lastX, int lastY)
+{
+	int score; // 현재 점수
+	int best; // 최고 점수
+	int position; // 최적 위치
+	int i;
+
+	if (turn == RED)
+		best = 9999; // 양의 무한대 (최소값을 찾아야 하므로)
+	else
+		best = -9999; // 음의 무한대 (최대값을 찾아야 하므로)
+
+	if (depth == 0 || getWinner(lastX, lastY) != 0)
+		return evaluate(depth, lastX, lastY);
+
+	for (int j = 0; j < SIZE_X; j++) {// 모든 열을 조사함
+		i = getHeight(j);
+		if (i == -1) continue;
+
+		board[j][i] = turn; // 현재 열에 돌을 놓는다
+		if (turn == RED)
+			score = minimax(pos, depth - 1, YELLOW, i, j);
+		else
+			score = minimax(pos, depth - 1, RED, i, j);
+		board[j][i] = 0; // 원래대로 되돌린다
+
+		if (turn == RED) // 사람의 차례라면
+		{
+			if (score < best) // 최적값은 최소가 되는것을 찾아 기록한다
+			{
+				best = score;
+				position = j; // 최적위치 기록
+			}
+		}
+		else // 컴퓨터의 차례라면
+		{
+			if (score > best) // 최적값은 최대가 되는것을 찾아 기록한다
+			{
+				best = score;
+				position = j; // 최적위치 기록
+			}
+		}
+	}
+	*pos = position; // 최종적으로 결정된 위치를 선택한다.
+	return best; // 최적값을 반환한다.
+}
+
+int compute(int lastX, int lastY) { // 컴퓨터 인공지능
+	int pos;
+	int weight = minimax(&pos, 8, YELLOW, lastX, lastY); // 이후 depth 수만큼 예상함
+	if (weight != 0)
+		return pos;
+	else {	// lastX 근처에 random
+		do {
+			pos = lastX + (rand() % 5) - 2;
+		} while (pos < 0 || pos >= SIZE_X);
+	}
+	return pos;
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
@@ -195,12 +282,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	static int width, height;
 	static HBRUSH hbWhite, hbBlue, hbRed, hbYellow;
 
-	HBRUSH oldBrush;
 	int i, j, tmp;
-	TCHAR buf[128];
 
 	switch (iMessage) {
 	case WM_CREATE:
+		srand((unsigned)time(NULL));
 		hWndMain = hWnd;
 
 		GetClientRect(hWnd, &rect);
@@ -224,8 +310,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		i = dropStone(hWnd, j);
 		if (i == -1)	// column is full
 			break;
-
-		tmp = getWinner(i, j);
+		tmp = getWinner(j, i);
 		if (tmp != 0) {
 			if (tmp == RED)
 				wsprintf(buf, TEXT("Red Won, Continue?"));
@@ -235,19 +320,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 				init(hWnd);
 			else
 				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
+			break;
 		}
-
+		/*
+		j = compute(j, i);
+		i = dropStone(hWnd, j);
+		tmp = getWinner(j, i);
+		if (tmp != 0) {
+			if (tmp == RED)
+				wsprintf(buf, TEXT("Red Won, Continue?"));
+			else if (tmp == YELLOW)
+				wsprintf(buf, TEXT("Yellow Won, Continue?"));
+			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+				init(hWnd);
+			else
+				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
+			break;
+		}
+		//*/
+		break;
 
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
-		oldBrush = (HBRUSH)SelectObject(hdc, NULL);
 		for (i = 0; i < SIZE_Y; i++) {
 			for (j = 0; j < SIZE_X; j++) {
-				rect = getSquare(i, j);
+				rect = getSquare(j, i);
 				SelectObject(hdc, hbBlue);
 				Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
-				switch (board[i][j]) {
+				switch (board[j][i]) {
 				case 0:
 					SelectObject(hdc, hbWhite);
 					break;
@@ -258,12 +359,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 					SelectObject(hdc, hbYellow);
 					break;
 				}
-				rect = getInnerSqaure(i, j);
+				rect = getInnerSqaure(j, i);
 				Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom);
 			}
 		}
-
-		SelectObject(hdc, oldBrush);
 		EndPaint(hWnd, &ps);
 		break;
 
@@ -272,6 +371,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		DeleteObject(hbYellow);
 		DeleteObject(hbRed);
 		DeleteObject(hbBlue);
+		DeleteObject(hbWhite);
 		PostQuitMessage(0);
 		return 0;
 	}
