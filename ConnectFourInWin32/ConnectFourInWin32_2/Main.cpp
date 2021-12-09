@@ -195,84 +195,6 @@ int getWinner(int lastX, int lastY) {
 	return 0;	// no one won
 }
 
-BOOL isFull() {
-	for (int j = 0; j < SIZE_X; j++) {
-		if (getHeight(j) != -1)
-			return FALSE;
-	}
-	return TRUE;
-}
-
-int evaluate(int depth, int lastX, int lastY) {
-	switch (getWinner(lastX, lastY)) {
-	case RED:
-		return -100 - depth;
-	case YELLOW:
-		return 100 + depth;
-	default:
-		return 0;
-	}
-}
-
-int minimax(int* pos, int depth, int turn, int lastX, int lastY)
-{
-	int score; // 현재 점수
-	int best; // 최고 점수
-	int position; // 최적 위치
-	int i;
-
-	if (turn == RED)
-		best = 9999; // 양의 무한대 (최소값을 찾아야 하므로)
-	else
-		best = -9999; // 음의 무한대 (최대값을 찾아야 하므로)
-
-	if (depth == 0 || getWinner(lastX, lastY) != 0)
-		return evaluate(depth, lastX, lastY);
-
-	for (int j = 0; j < SIZE_X; j++) {// 모든 열을 조사함
-		i = getHeight(j);
-		if (i == -1) continue;
-
-		board[j][i] = turn; // 현재 열에 돌을 놓는다
-		if (turn == RED)
-			score = minimax(pos, depth - 1, YELLOW, i, j);
-		else
-			score = minimax(pos, depth - 1, RED, i, j);
-		board[j][i] = 0; // 원래대로 되돌린다
-
-		if (turn == RED) // 사람의 차례라면
-		{
-			if (score < best) // 최적값은 최소가 되는것을 찾아 기록한다
-			{
-				best = score;
-				position = j; // 최적위치 기록
-			}
-		}
-		else // 컴퓨터의 차례라면
-		{
-			if (score > best) // 최적값은 최대가 되는것을 찾아 기록한다
-			{
-				best = score;
-				position = j; // 최적위치 기록
-			}
-		}
-	}
-	*pos = position; // 최종적으로 결정된 위치를 선택한다.
-	return best; // 최적값을 반환한다.
-}
-
-int compute(int lastX, int lastY) { // 컴퓨터 인공지능
-	int pos;
-	int weight = minimax(&pos, 8, YELLOW, lastX, lastY); // 이후 depth 수만큼 예상함
-	if (weight != 0)
-		return pos;
-	else {	// lastX 근처에 random
-		do {
-			pos = lastX + (rand() % 5) - 2;
-		} while (pos < 0 || pos >= SIZE_X);
-	}
-	return pos;
-}
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
@@ -322,22 +244,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
 			break;
 		}
-		/*
-		j = compute(j, i);
-		i = dropStone(hWnd, j);
-		tmp = getWinner(j, i);
-		if (tmp != 0) {
-			if (tmp == RED)
-				wsprintf(buf, TEXT("Red Won, Continue?"));
-			else if (tmp == YELLOW)
-				wsprintf(buf, TEXT("Yellow Won, Continue?"));
-			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
-				init(hWnd);
-			else
-				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
-			break;
-		}
-		//*/
 		break;
 
 	case WM_PAINT:
