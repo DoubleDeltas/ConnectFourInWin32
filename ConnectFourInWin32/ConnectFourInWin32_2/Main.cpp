@@ -195,6 +195,14 @@ int getWinner(int lastX, int lastY) {
 	return 0;	// no one won
 }
 
+BOOL isFull() {
+	for (int j = 0; j < SIZE_X; j++) {
+		if (getHeight(j) != -1)
+			return FALSE;
+	}
+	return TRUE;
+}
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
@@ -205,6 +213,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	static HBRUSH hbWhite, hbBlue, hbRed, hbYellow;
 
 	int i, j, tmp;
+	BOOL isEnd = FALSE;
 
 	switch (iMessage) {
 	case WM_CREATE:
@@ -233,18 +242,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		if (i == -1)	// column is full
 			break;
 		tmp = getWinner(j, i);
-		if (tmp != 0) {
-			if (tmp == RED)
-				wsprintf(buf, TEXT("Red Won, Continue?"));
-			else if (tmp == YELLOW)
-				wsprintf(buf, TEXT("Yellow Won, Continue?"));
+		if (isFull()) {
+			wsprintf(buf, TEXT("Draw, Continue?"));
+			isEnd = TRUE;
+		}
+		if (tmp == RED) {
+			wsprintf(buf, TEXT("Red Won, Continue?"));
+			isEnd = TRUE;
+		}
+		else if (tmp == YELLOW) {
+			wsprintf(buf, TEXT("Yellow Won, Continue?"));
+			isEnd = TRUE;
+		}
+		if (isEnd) {
 			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
 				init(hWnd);
 			else
 				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
-			break;
 		}
-		break;
+	break;
 
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
