@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <time.h>
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
@@ -49,9 +48,8 @@ int turn;
 
 RECT boardRect;
 
-// temporal variables
+// temporal variable
 RECT rect;
-TCHAR buf[128];
 
 void init(HWND hWnd) {
 	turn = 0;
@@ -61,48 +59,42 @@ void init(HWND hWnd) {
 	InvalidateRect(hWnd, &boardRect, TRUE);
 }
 
-RECT getSquare(int x, int y) {
+RECT getSquare(int i, int j) {
 	int width = (boardRect.right - boardRect.left) / SIZE_X;
 	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
 	RECT rect = {
-		boardRect.left + x * width,
-		boardRect.top + y * height,
-		boardRect.left + (x + 1) * width,
-		boardRect.top + (y + 1) * height
+			boardRect.left + j * width,
+			boardRect.top + i * height,
+			boardRect.left + (j + 1) * width,
+			boardRect.top + (i + 1) * height
 	};
 	return rect;
 }
 
-RECT getInnerSqaure(int x, int y) {
+RECT getInnerSqaure(int i, int j) {
 	int width = (boardRect.right - boardRect.left) / SIZE_X;
 	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
 	RECT rect = {
-		boardRect.left + x * width + width / 10,
-		boardRect.top + y * height + height / 10,
-		boardRect.left + (x + 1) * width - width / 10,
-		boardRect.top + (y + 1) * height - height / 10
+		boardRect.left + j * width + width / 10,
+		boardRect.top + i * height + height / 10,
+		boardRect.left + (j + 1) * width - width / 10,
+		boardRect.top + (i + 1) * height - height / 10
 	};
 	return rect;
-}
-
-int getHeight(int col) {	// 0 ~ SIZE_Y - 1
-	int i;
-	for (i = 0; i < SIZE_Y; i++)
-		if (board[col][i]) break;
-	i--;
-
-	return i;	// cf. if column is full, return -1
 }
 
 int dropStone(HWND hWnd, int col) {
-	int i = getHeight(col);
-	if (i == -1)
-		return -1;
+	int i;
+	for (i = 0; i < SIZE_Y; i++)
+		if (board[i][col]) break;
+	i--;
+
+	if (i == -1) return -1;
 
 	turn++;
-	board[col][i] = (turn % 2) ? RED : YELLOW;
+	board[i][col] = (turn % 2) ? 1 : 2;
 
-	rect = getSquare(col, i);
+	rect = getSquare(i, col);
 	InvalidateRect(hWnd, &rect, FALSE);
 	InvalidateRect(hWnd, &rectTurnText, TRUE);
 
@@ -214,12 +206,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	static int width, height;
 	static HBRUSH hbWhite, hbBlue, hbRed, hbYellow;
 
+	HBRUSH oldBrush;
 	int i, j, tmp;
-	BOOL isEnd = FALSE;
+	TCHAR buf[128];
 
 	switch (iMessage) {
 	case WM_CREATE:
-		srand((unsigned)time(NULL));
 		hWndMain = hWnd;
 
 		GetClientRect(hWnd, &rect);
@@ -260,12 +252,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
+		oldBrush = (HBRUSH)SelectObject(hdc, NULL);
 		for (i = 0; i < SIZE_Y; i++) {
 			for (j = 0; j < SIZE_X; j++) {
-				rect = getSquare(j, i);
+				rect = getSquare(i, j);
 				SelectObject(hdc, hbBlue);
 				Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
-				switch (board[j][i]) {
+				switch (board[i][j]) {
 				case 0:
 					SelectObject(hdc, hbWhite);
 					break;
@@ -276,10 +269,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 					SelectObject(hdc, hbYellow);
 					break;
 				}
-				rect = getInnerSqaure(j, i);
+				rect = getInnerSqaure(i, j);
 				Ellipse(hdc, rect.left, rect.top, rect.right, rect.bottom);
 			}
 		}
+
+		SelectObject(hdc, oldBrush);
 		EndPaint(hWnd, &ps);
 		break;
 
@@ -288,7 +283,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		DeleteObject(hbYellow);
 		DeleteObject(hbRed);
 		DeleteObject(hbBlue);
-		DeleteObject(hbWhite);
 		PostQuitMessage(0);
 		return 0;
 	}
