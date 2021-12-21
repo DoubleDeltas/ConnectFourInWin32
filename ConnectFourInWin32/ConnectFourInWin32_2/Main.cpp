@@ -42,8 +42,9 @@ const int SIZE_X = 7;
 const int SIZE_Y = 6;
 
 const int EMPTY = 0, RED = 1, YELLOW = 2;
+const RECT rectTurnText = { 500, 200, 500, 220 };
 
-int board[SIZE_X][SIZE_Y];
+int board[SIZE_Y][SIZE_X];
 int turn;
 
 RECT boardRect;
@@ -103,11 +104,12 @@ int dropStone(HWND hWnd, int col) {
 
 	rect = getSquare(col, i);
 	InvalidateRect(hWnd, &rect, FALSE);
+	InvalidateRect(hWnd, &rectTurnText, TRUE);
 
 	return i;
 }
 
-int getWinner(int lastX, int lastY) {
+int winpoint(int lastX, int lastY) {
 	int cnt;
 	int player;
 	int d;
