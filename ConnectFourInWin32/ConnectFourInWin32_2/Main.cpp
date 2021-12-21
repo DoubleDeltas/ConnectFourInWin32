@@ -243,20 +243,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		i = dropStone(hWnd, j);
 		if (i == -1)	// column is full
 			break;
-		tmp = getWinner(j, i);
-		if (isFull()) {
-			wsprintf(buf, TEXT("Draw, Continue?"));
-			isEnd = TRUE;
-		}
-		if (tmp == RED) {
-			wsprintf(buf, TEXT("Red Won, Continue?"));
-			isEnd = TRUE;
-		}
-		else if (tmp == YELLOW) {
-			wsprintf(buf, TEXT("Yellow Won, Continue?"));
-			isEnd = TRUE;
-		}
-		if (isEnd) {
+
+		tmp = winpoint(i, j);
+		if (tmp != 0) {
+			if (tmp == RED)
+				wsprintf(buf, TEXT("Red Won, Continue?"));
+			else if (tmp == YELLOW)
+				wsprintf(buf, TEXT("Yellow Won, Continue?"));
 			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
 				init(hWnd);
 			else
