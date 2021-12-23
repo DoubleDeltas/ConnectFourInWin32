@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <math.h>
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInst;
@@ -223,18 +224,25 @@ int minimax(int *ppos, int lastX, int lastY, int depth, int turn) {
 
 		board[x][y] = EMPTY;	// undrop stone
 
-		if (turn == RED) {
-			if (score < best) {
-				best = score;
-				pos = x;
+		if (score == abs(10 + depth - 1)) {	// alpha-beta pruning, when immidiate child evaluated
+			best = score;
+			pos = x;
+		}
+		else {
+			if (turn == RED) {
+				if (score < best) {
+					best = score;
+					pos = x;
+				}
+			}
+			else {	//turn == YELLOW(computer)
+				if (score > best) {
+					best = score;
+					pos = x;
+				}
 			}
 		}
-		else {	//turn == YELLOW(computer)
-			if (score > best) {
-				best = score;
-				pos = x;
-			}
-		}
+		
 	}
 	*ppos = pos;
 	return best;
@@ -245,7 +253,7 @@ int compute(int lastX, int lastY) {
 	int pos;
 	int score;
 	
-	score = minimax(&pos, lastX, lastY, 6, YELLOW);
+	score = minimax(&pos, lastX, lastY, 7, YELLOW);
 
 	/*
 	if (score == 0) // couldn't predict with given depth
