@@ -43,7 +43,7 @@ const int SIZE_Y = 6;
 const int EMPTY = 0, RED = 1, YELLOW = 2;
 const RECT rectTurnText = { 500, 200, 500, 220 };
 
-int board[SIZE_Y][SIZE_X];
+int board[SIZE_X][SIZE_Y];
 int turn;
 
 RECT boardRect;
@@ -53,55 +53,42 @@ RECT rect;
 
 void init(HWND hWnd) {
 	turn = 0;
-	for (int i = 0; i < SIZE_Y; i++)
-		for (int j = 0; j < SIZE_X; j++)
-			board[j][i] = 0;
+	for (int i = 0; i < SIZE_X; i++)
+		for (int j = 0; j < SIZE_Y; j++)
+			board[i][j] = 0;
 	InvalidateRect(hWnd, &boardRect, TRUE);
 }
 
-RECT getSquare(int i, int j) {
-	int width = (boardRect.right - boardRect.left) / SIZE_X;
-	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
-	RECT rect = {
-			boardRect.left + j * width,
-			boardRect.top + i * height,
-			boardRect.left + (j + 1) * width,
-			boardRect.top + (i + 1) * height
-	};
-	return rect;
+
+/*--------------- game ----------------*/
+RECT getSquare(int x, int y);
+
+int getHeight(int x) {
+	int y;
+	for (y = 0; y < SIZE_Y; y++) {
+		if (board[x][y] != EMPTY)
+			break;
+	}
+	return y - 1;	// cf. if y == -1, column 'x' is full
 }
 
-RECT getInnerSqaure(int i, int j) {
-	int width = (boardRect.right - boardRect.left) / SIZE_X;
-	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
-	RECT rect = {
-		boardRect.left + j * width + width / 10,
-		boardRect.top + i * height + height / 10,
-		boardRect.left + (j + 1) * width - width / 10,
-		boardRect.top + (i + 1) * height - height / 10
-	};
-	return rect;
-}
+int dropStone(HWND hWnd, int x) {
+	int y = getHeight(x);
 
-int dropStone(HWND hWnd, int col) {
-	int i;
-	for (i = 0; i < SIZE_Y; i++)
-		if (board[i][col]) break;
-	i--;
-
-	if (i == -1) return -1;
+	if (y == -1) return -1;
 
 	turn++;
-	board[i][col] = (turn % 2) ? 1 : 2;
+	board[x][y] = (turn % 2) ? 1 : 2;
 
-	rect = getSquare(i, col);
+	rect = getSquare(x, y);
 	InvalidateRect(hWnd, &rect, FALSE);
-	InvalidateRect(hWnd, &rectTurnText, TRUE);
+//	InvalidateRect(hWnd, &rectTurnText, TRUE);
 
-	return i;
+	return y;
 }
 
-int winpoint(int lastX, int lastY) {
+
+int getWinner(int lastX, int lastY) {
 	int cnt;
 	int player;
 	int d;
@@ -197,6 +184,105 @@ BOOL isFull() {
 	return TRUE;
 }
 
+/*-------------- computer ----------------*/
+int evaluate(int lastX, int lastY, int depth) {
+	int winner = getWinner(lastX, lastY);
+	if (winner == RED)
+		return -10 - depth;
+	else if (winner == YELLOW)
+		return 10 + depth;
+	else
+		return 0;
+}
+
+int minimax(int *ppos, int lastX, int lastY, int depth, int turn) {
+	int score;
+	int best;
+	int pos;
+
+	if (turn == RED)
+		best = 9999;	// to find point that evaluated value is worst
+	else
+		best = -9999;	// to find ~ best
+
+	if (depth == 0 || getWinner(lastX, lastY) != 0) {	// termination condition
+		return evaluate(lastX, lastY, depth);
+	}
+
+	int y;
+	for (int x = 0; x < SIZE_X; x++) {
+		y = getHeight(x);
+		if (y == -1) continue;	// skip full-filled column
+
+		board[x][y] = turn;		// drop stone
+
+		if (turn == RED)
+			score = minimax(ppos, x, y, depth - 1, YELLOW);
+		else // turn == YELLOW(computer)
+			score = minimax(ppos, x, y, depth - 1, RED);
+
+		board[x][y] = EMPTY;	// undrop stone
+
+		if (turn == RED) {
+			if (score < best) {
+				best = score;
+				pos = x;
+			}
+		}
+		else {	//turn == YELLOW(computer)
+			if (score > best) {
+				best = score;
+				pos = x;
+			}
+		}
+	}
+	*ppos = pos;
+	return best;
+}
+
+int compute(int lastX, int lastY) {
+	int depth = 0;
+	int pos;
+	int score;
+	
+	score = minimax(&pos, lastX, lastY, 6, YELLOW);
+
+	/*
+	if (score == 0) // couldn't predict with given depth
+		pos = SIZE_X / 2;
+	//*/
+	return pos;
+}
+
+/*--------------- drawing ----------------*/
+
+RECT getSquare(int x, int y) {
+	int width = (boardRect.right - boardRect.left) / SIZE_X;
+	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
+	RECT rect = {
+			boardRect.left + x * width,
+			boardRect.top + y * height,
+			boardRect.left + (x + 1) * width,
+			boardRect.top + (y + 1) * height
+	};
+	return rect;
+}
+
+RECT getInnerSqaure(int x, int y) {
+	int width = (boardRect.right - boardRect.left) / SIZE_X;
+	int height = (boardRect.bottom - boardRect.top) / SIZE_Y;
+	RECT rect = {
+		boardRect.left + x * width + width / 10,
+		boardRect.top + y * height + height / 10,
+		boardRect.left + (x + 1) * width - width / 10,
+		boardRect.top + (y + 1) * height - height / 10
+	};
+	return rect;
+}
+
+/*----------- window procedure and game -----------*/
+
+BOOL processWin(int lastX, int lastY);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
@@ -207,8 +293,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	static HBRUSH hbWhite, hbBlue, hbRed, hbYellow;
 
 	HBRUSH oldBrush;
-	int i, j, tmp;
-	TCHAR buf[128];
+	int i, j;
 
 	switch (iMessage) {
 	case WM_CREATE:
@@ -227,34 +312,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 		break;
 
+
 	case WM_LBUTTONDOWN:
-		j = (LOWORD(lParam) - boardRect.left) * SIZE_X / (boardRect.right - boardRect.left);	// x-index
-		if (j < 0 || j >= SIZE_X)	// non-hit check
+		i = (LOWORD(lParam) - boardRect.left) * SIZE_X / (boardRect.right - boardRect.left);	// x-index
+		if (i < 0 || i >= SIZE_X)	// non-hit check
 			break;
 
-		i = dropStone(hWnd, j);
-		if (i == -1)	// column is full
+		// RED: player
+		j = dropStone(hWnd, i);
+		if (j == -1)	// column is full
 			break;
+		if (processWin(i, j)) break;
+		
+		// YELLOW: computer
+		i = compute(i, j);
+		j = dropStone(hWnd, i);
+		if (j == -1)	// column is full
+			break;
+		processWin(i, j);
+		break;
 
-		tmp = winpoint(i, j);
-		if (tmp != 0) {
-			if (tmp == RED)
-				wsprintf(buf, TEXT("Red Won, Continue?"));
-			else if (tmp == YELLOW)
-				wsprintf(buf, TEXT("Yellow Won, Continue?"));
-			if (MessageBox(hWnd, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
-				init(hWnd);
-			else
-				SendMessage(hWnd, WM_CLOSE, 0L, 0L);
-		}
-	break;
 
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
 
 		oldBrush = (HBRUSH)SelectObject(hdc, NULL);
-		for (i = 0; i < SIZE_Y; i++) {
-			for (j = 0; j < SIZE_X; j++) {
+		for (i = 0; i < SIZE_X; i++) {
+			for (j = 0; j < SIZE_Y; j++) {
 				rect = getSquare(i, j);
 				SelectObject(hdc, hbBlue);
 				Rectangle(hdc, rect.left, rect.top, rect.right, rect.bottom);
@@ -284,7 +368,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		DeleteObject(hbRed);
 		DeleteObject(hbBlue);
 		PostQuitMessage(0);
-		return 0;
+		break;
 	}
 	return(DefWindowProc(hWnd, iMessage, wParam, lParam));
+}
+
+BOOL processWin(int lastX, int lastY) {
+	TCHAR buf[128];
+	int winner = getWinner(lastX, lastY);
+	if (winner != 0) {
+		if (winner == RED)
+			wsprintf(buf, TEXT("Red Won, Continue?"));
+		else if (winner == YELLOW)
+			wsprintf(buf, TEXT("Yellow Won, Continue?"));
+		if (MessageBox(hWndMain, buf, TEXT("Connect Four"), MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
+			init(hWndMain);
+		else
+			SendMessage(hWndMain, WM_CLOSE, 0L, 0L);
+		return TRUE;
+	}
+	return FALSE;
 }
